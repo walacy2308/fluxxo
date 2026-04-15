@@ -22,6 +22,10 @@ const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 console.log("🤖 Bot iniciado!");
 
 // ================= HEALTH =================
+app.get("/", (req, res) => {
+  res.send("API ONLINE 🚀");
+});
+
 app.get("/api/v1/health", (req, res) => {
   res.json({ status: "ok" });
 });
