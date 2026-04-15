@@ -1,5 +1,12 @@
 const express = require("express");
+const { createClient } = require("@supabase/supabase-js");
+
 const app = express();
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 // ROTA DE TESTE (OBRIGATÓRIA)
 app.get("/", (req, res) => {
