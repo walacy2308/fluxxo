@@ -1,8 +1,8 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import { createClient } from "@supabase/supabase-js";
-import TelegramBot from "node-telegram-bot-api";
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const { createClient } = require("@supabase/supabase-js");
+const TelegramBot = require("node-telegram-bot-api");
 
 dotenv.config();
 
@@ -232,8 +232,8 @@ bot.on("message", async (msg) => {
 });
 
 // ================= SERVER =================
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Rodando na porta ${PORT}`);
+  console.log("Servidor rodando na porta " + PORT);
 });
