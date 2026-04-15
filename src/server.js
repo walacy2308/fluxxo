@@ -121,7 +121,7 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const codigo = match[1].trim();
 
-  console.log("Código recebido:", codigo);
+  console.log("Código recebido:", `"${codigo}"`);
 
   const { data: alreadyLinked } = await supabase
     .from("users")
