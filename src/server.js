@@ -119,9 +119,9 @@ bot.onText(/\/start$/, (msg) => {
 // /start <código> — vincula conta ao chat
 bot.onText(/\/start (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const code = match[1].trim().toUpperCase();
+  const codigo = match[1].trim();
 
-  console.log("Código recebido:", code);
+  console.log("Código recebido:", codigo);
 
   const { data: alreadyLinked } = await supabase
     .from("users")
@@ -134,10 +134,10 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
     return;
   }
 
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from("users")
     .select("*")
-    .eq("telegram_code", code)
+    .ilike("telegram_code", codigo.trim())
     .maybeSingle();
 
   console.log("Usuário encontrado:", user);
