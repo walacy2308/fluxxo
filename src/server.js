@@ -140,7 +140,8 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
     .ilike("telegram_code", codigo.trim())
     .maybeSingle();
 
-  console.log("Usuário encontrado:", user);
+  console.log("Resultado da query:", user);
+  if (error) console.error("Erro da query:", error);
 
   if (!user) {
     bot.sendMessage(chatId, "❌ *Código inválido ou já utilizado.*\n\nVerifique o código no painel do Fluuxy ou gere um novo.", { parse_mode: "Markdown" });
