@@ -152,29 +152,24 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
     return;
   }
 
-  const { data: user, error } = await supabase
+  const { data: user } = await supabase
     .from("users")
     .select("*")
-    .eq("telegram_code", codigo.trim().toUpperCase())
+    .eq("telegram_code", codigo)
     .maybeSingle();
 
-  console.log("Resultado da query:", user);
-  if (error) console.error("Erro da query:", error);
-
   if (!user) {
-    bot.sendMessage(chatId, "❌ *Código inválido ou já utilizado.*\n\nVerifique o código no painel do Fluuxy ou gere um novo.", { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "❌ Código inválido");
     return;
   }
 
+  // conecta o usuário
   await supabase
     .from("users")
-    .update({
-      telegram_chat_id: chatId,
-      telegram_code: null,
-    })
+    .update({ telegram_chat_id: chatId })
     .eq("id", user.id);
 
-  bot.sendMessage(chatId, `✅ *Telegram conectado!*\nConta: ${user.email}`, { parse_mode: "Markdown" });
+  bot.sendMessage(chatId, "✅ Conta conectada com sucesso!");
 });
 
 // Mensagens livres — ex: "mercado 50"
