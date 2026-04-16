@@ -50,7 +50,7 @@ app.get("/teste/:codigo", async (req, res) => {
 // ================= GASTOS =================
 app.get("/api/v1/gastos", async (req, res) => {
   const { data, error } = await supabase
-    .from("gastos")
+    .from("transactions")
     .select("*");
 
   if (error) return res.status(500).json(error);
