@@ -166,7 +166,10 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
   // conecta o usuário
   await supabase
     .from("users")
-    .update({ telegram_chat_id: chatId })
+    .update({
+      telegram_chat_id: chatId,
+      telegram_code: null // invalida o código
+    })
     .eq("id", user.id);
 
   bot.sendMessage(chatId, "✅ Conta conectada com sucesso!");
