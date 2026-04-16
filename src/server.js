@@ -7,7 +7,12 @@ const TelegramBot = require("node-telegram-bot-api");
 dotenv.config();
 
 const app = express();
-app.use(cors());
+// LIBERAR CORS COMPLETO
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 
 // ================= SUPABASE =================
