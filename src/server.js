@@ -30,6 +30,23 @@ app.get("/api/v1/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Endpoint de debug adicionado
+app.get("/teste/:codigo", async (req, res) => {
+  const codigo = req.params.codigo;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .ilike("telegram_code", codigo.trim())
+    .maybeSingle();
+
+  return res.json({
+    recebido: codigo,
+    encontrado: data,
+    erro: error
+  });
+});
+
 // ================= GASTOS =================
 app.get("/api/v1/gastos", async (req, res) => {
   const { data, error } = await supabase
