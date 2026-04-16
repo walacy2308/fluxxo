@@ -155,7 +155,7 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
   const { data: user, error } = await supabase
     .from("users")
     .select("*")
-    .ilike("telegram_code", codigo.trim())
+    .eq("telegram_code", codigo.trim().toUpperCase())
     .maybeSingle();
 
   console.log("Resultado da query:", user);
