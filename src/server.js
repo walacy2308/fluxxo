@@ -136,9 +136,10 @@ bot.onText(/\/start$/, (msg) => {
 // /start <código> — vincula conta ao chat
 bot.onText(/\/start (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  const codigo = match[1].trim();
+  const texto = msg.text;
+  const codigo = texto.split(" ")[1];
 
-  console.log("Código recebido:", `"${codigo}"`);
+  console.log("Código extraído:", codigo);
 
   const { data: alreadyLinked } = await supabase
     .from("users")
