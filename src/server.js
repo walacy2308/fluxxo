@@ -152,10 +152,16 @@ bot.on("message", async (msg) => {
       return; // 🚨 PARA AQUI
     }
 
+    // 🔥 Limpa esse chat_id de outras contas (desloga os antigos)
+    await supabase
+      .from("users")
+      .update({ telegram_chat_id: null })
+      .eq("telegram_chat_id", chatId);
+
     const { error: updateError } = await supabase
       .from("users")
       .update({
-        telegram_chat_id: String(chatId),
+        telegram_chat_id: chatId,
         telegram_code: null
       })
       .eq("id", user.id);
@@ -200,7 +206,8 @@ Vamos organizar sua vida financeira juntos! 📊🔥`);
   const { data: user, error: fetchError } = await supabase
     .from("users")
     .select("*")
-    .eq("telegram_chat_id", String(chatId))
+    .eq("telegram_chat_id", chatId)
+    .limit(1)
     .maybeSingle();
 
   if (fetchError) {
