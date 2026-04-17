@@ -152,13 +152,19 @@ bot.on("message", async (msg) => {
       return; // 🚨 PARA AQUI
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("users")
       .update({
-        telegram_chat_id: chatId,
+        telegram_chat_id: String(chatId),
         telegram_code: null
       })
       .eq("id", user.id);
+
+    if (updateError) {
+       console.error("❌ Erro ao atualizar usuário:", updateError);
+       bot.sendMessage(chatId, "⚠️ Ops! Tivemos um erro interno ao conectar sua conta. Tente novamente ou chame o suporte.");
+       return;
+    }
 
     bot.sendMessage(chatId, "✅ Conta conectada!");
     return; // 🚨 ESSENCIAL (impede virar gasto)
@@ -191,11 +197,15 @@ Vamos organizar sua vida financeira juntos! 📊🔥`);
   if (texto.startsWith("/")) return; // ignora outros comandos
 
   // 🔹 2. SE NÃO FOR CÓDIGO → É GASTO
-  const { data: user } = await supabase
+  const { data: user, error: fetchError } = await supabase
     .from("users")
     .select("*")
-    .eq("telegram_chat_id", chatId)
+    .eq("telegram_chat_id", String(chatId))
     .maybeSingle();
+
+  if (fetchError) {
+    console.error("❌ Erro ao buscar usuário conectado:", fetchError);
+  }
 
   if (!user) {
     bot.sendMessage(chatId, "👋 *Olá! Você ainda não conectou sua conta.*\n\nPara começar a registrar seus gastos, envie o seu *CÓDIGO* aqui.", { parse_mode: "Markdown" });
