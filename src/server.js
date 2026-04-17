@@ -81,6 +81,31 @@ app.post("/api/v1/gastos", async (req, res) => {
   res.json(data);
 });
 
+app.delete("/api/v1/gastos/:id", async (req, res) => {
+  try {
+    const userId = req.headers["user-id"];
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "user-id não enviado" });
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (error) {
+      return res.status(500).json({ error });
+    }
+
+    return res.status(204).send();
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno" });
+  }
+});
+
 // ================= HELPERS =================
 function detectarCategoria(desc) {
   if (desc.includes("mercado")) return "Alimentação";
