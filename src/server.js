@@ -126,70 +126,79 @@ function interpretarMensagem(texto) {
 
 // ================= TELEGRAM HANDLERS =================
 
-// /start — boas-vindas sem código
-bot.onText(/\/start$/, (msg) => {
-  const chatId = msg.chat.id;
-  console.log("Start recebido");
-  bot.sendMessage(chatId, `🚀 Bem-vindo ao Fluuxy!\n\nEnvie um gasto assim:\n👉 mercado 50\n\nOu conecte sua conta:\n/start SEU_CODIGO`);
-});
-
-// /start <código> — vincula conta ao chat
-bot.onText(/\/start (.+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const texto = msg.text;
-  const codigo = texto.split(" ")[1];
-
-  console.log("Código extraído:", codigo);
-
-  const { data: alreadyLinked } = await supabase
-    .from("users")
-    .select("*")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (alreadyLinked) {
-    bot.sendMessage(chatId, `✅ Você já está conectado como *${alreadyLinked.email}*!`, { parse_mode: "Markdown" });
-    return;
-  }
-
-  const { data: user } = await supabase
-    .from("users")
-    .select("*")
-    .eq("telegram_code", codigo)
-    .maybeSingle();
-
-  if (!user) {
-    bot.sendMessage(chatId, "❌ Código inválido");
-    return;
-  }
-
-  // conecta o usuário
-  await supabase
-    .from("users")
-    .update({
-      telegram_chat_id: chatId,
-      telegram_code: null // invalida o código
-    })
-    .eq("id", user.id);
-
-  bot.sendMessage(chatId, "✅ Conta conectada com sucesso!");
-});
-
-// Mensagens livres — ex: "mercado 50"
 bot.on("message", async (msg) => {
+  const texto = msg.text?.trim();
   const chatId = msg.chat.id;
 
+  if (!texto) return;
+
+  console.log("Mensagem recebida:", texto);
+
+  const textoUpper = texto.toUpperCase();
+
+  // 🔥 1. VERIFICA CÓDIGO PRIMEIRO (ANTES DE TUDO)
+  const isCodigo = /^FLUX\d{4}$/.test(textoUpper);
+  console.log("É código:", isCodigo);
+
+  if (isCodigo) {
+    const { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .ilike("telegram_code", textoUpper)
+      .maybeSingle();
+
+    if (!user) {
+      bot.sendMessage(chatId, "❌ Código inválido");
+      return; // 🚨 PARA AQUI
+    }
+
+    await supabase
+      .from("users")
+      .update({
+        telegram_chat_id: chatId,
+        telegram_code: null
+      })
+      .eq("id", user.id);
+
+    bot.sendMessage(chatId, "✅ Conta conectada!");
+    return; // 🚨 ESSENCIAL (impede virar gasto)
+  }
+
+  if (texto.startsWith("/start")) {
+    bot.sendMessage(chatId, `🚀 Bem-vindo ao Fluuxxo!
+
+Para conectar sua conta e começar a controlar seus gastos de forma inteligente 💸, siga o passo a passo:
+
+1️⃣ Acesse o app:
+https://fluuxxo.lovable.app/login
+
+2️⃣ Faça seu login ou cadastro
+
+3️⃣ Gere seu código de conexão
+
+4️⃣ Volte aqui e envie o código (ex: FLUX1234)
+
+✨ Pronto! Sua conta será conectada automaticamente.
+
+Depois disso, é só enviar seus gastos assim:
+👉 mercado 50
+👉 uber 30
+
+Vamos organizar sua vida financeira juntos! 📊🔥`);
+    return;
+  }
+
+  if (texto.startsWith("/")) return; // ignora outros comandos
+
+  // 🔹 2. SE NÃO FOR CÓDIGO → É GASTO
   const { data: user } = await supabase
     .from("users")
     .select("*")
     .eq("telegram_chat_id", chatId)
     .maybeSingle();
 
-  const texto = msg.text;
-  if (!texto || texto.startsWith("/")) return;
-
   if (!user) {
-    bot.sendMessage(chatId, "👋 *Olá! Você ainda não conectou sua conta.*\n\nPara começar a registrar seus gastos, use:\n`/start SEU_CODIGO`", { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, "👋 *Olá! Você ainda não conectou sua conta.*\n\nPara começar a registrar seus gastos, envie o seu *CÓDIGO* aqui.", { parse_mode: "Markdown" });
     return;
   }
 
