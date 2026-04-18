@@ -53,9 +53,16 @@ app.get("/teste/:codigo", async (req, res) => {
 
 // ================= GASTOS =================
 app.get("/api/v1/gastos", async (req, res) => {
+  const userId = req.headers["user-id"];
+  
+  if (!userId) {
+    return res.status(400).json({ error: "user-id não enviado" });
+  }
+
   const { data, error } = await supabase
     .from("transactions")
-    .select("*");
+    .select("*")
+    .eq("user_id", userId);
 
   if (error) return res.status(500).json(error);
 
@@ -101,6 +108,67 @@ app.delete("/api/v1/gastos/:id", async (req, res) => {
     }
 
     return res.status(204).send();
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+app.put("/api/v1/gastos/:id", async (req, res) => {
+  try {
+    const userId = req.headers["user-id"];
+    const { id } = req.params;
+    const { descricao, valor, categoria, pago } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "user-id não enviado" });
+    }
+
+    // Build the update object dynamically
+    const updateData = {};
+    if (descricao !== undefined) updateData.descricao = descricao;
+    if (valor !== undefined) updateData.valor = valor;
+    if (categoria !== undefined) updateData.categoria = categoria;
+    if (pago !== undefined) updateData.completed = pago;
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .update(updateData)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select();
+
+    if (error) {
+      return res.status(500).json({ error });
+    }
+
+    return res.json(data[0] || {});
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+app.patch("/api/v1/gastos/:id", async (req, res) => {
+  try {
+    const userId = req.headers["user-id"];
+    const { id } = req.params;
+    const { pago } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "user-id não enviado" });
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .update({ completed: pago })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select();
+
+    if (error) {
+      return res.status(500).json({ error });
+    }
+
+    return res.json(data[0] || {});
   } catch (err) {
     return res.status(500).json({ error: "Erro interno" });
   }
