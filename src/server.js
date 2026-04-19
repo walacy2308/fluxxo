@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const TelegramBot = require("node-telegram-bot-api");
+const crypto = require("crypto");
 
 dotenv.config();
 
@@ -72,16 +73,56 @@ app.get("/api/v1/gastos", async (req, res) => {
 app.post("/api/v1/gastos", async (req, res) => {
   const { descricao, valor, user_id, tipo, parcelas, categoria } = req.body;
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert([{
-      descricao,
-      valor,
-      user_id,
-      tipo: tipo || "gasto",
-      parcelas: parcelas || 1,
-      categoria: categoria || detectarCategoria(descricao || "")
-    }]);
+  const numParcelas = parcelas || 1;
+  const tipoFinal = tipo || "gasto";
+  const categoriaFinal = categoria || detectarCategoria(descricao || "");
+
+  let data, error;
+
+  if (numParcelas > 1) {
+    const valorParcela = valor / numParcelas;
+    const parcelId = crypto.randomUUID();
+    const registros = [];
+    const dataInicial = new Date();
+
+    for (let i = 1; i <= numParcelas; i++) {
+      const dataParcela = new Date(dataInicial);
+      dataParcela.setMonth(dataParcela.getMonth() + (i - 1));
+
+      registros.push({
+        user_id,
+        descricao,
+        valor: valorParcela,
+        tipo: tipoFinal,
+        categoria: categoriaFinal,
+        parcelas: numParcelas,
+        parcela_atual: i,
+        total_parcelas: numParcelas,
+        parcel_id: parcelId,
+        created_at: dataParcela.toISOString()
+      });
+    }
+
+    const response = await supabase.from("transactions").insert(registros).select();
+    data = response.data;
+    error = response.error;
+  } else {
+    const response = await supabase
+      .from("transactions")
+      .insert([{
+        user_id,
+        descricao,
+        valor,
+        tipo: tipoFinal,
+        categoria: categoriaFinal,
+        parcelas: 1,
+        parcela_atual: 1,
+        total_parcelas: 1
+      }])
+      .select();
+    data = response.data;
+    error = response.error;
+  }
 
   if (error) return res.status(500).json(error);
 
@@ -92,16 +133,23 @@ app.delete("/api/v1/gastos/:id", async (req, res) => {
   try {
     const userId = req.headers["user-id"];
     const { id } = req.params;
+    const { parcel_id } = req.query; // Pega parcel_id da query se enviado
 
     if (!userId) {
       return res.status(400).json({ error: "user-id não enviado" });
     }
 
-    const { data, error } = await supabase
-      .from("transactions")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+    let query = supabase.from("transactions").delete().eq("user_id", userId);
+
+    if (parcel_id) {
+      // Se tiver parcel_id, deleta tudo desse grupo
+      query = query.eq("parcel_id", parcel_id);
+    } else {
+      // Caso contrário, deleta apenas uma parcela
+      query = query.eq("id", id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return res.status(500).json({ error });
@@ -184,6 +232,7 @@ function detectarCategoria(desc) {
 }
 
 function interpretarMensagem(texto) {
+  const originalTexto = texto;
   texto = texto.toLowerCase();
 
   let tipo = "gasto";
@@ -195,10 +244,20 @@ function interpretarMensagem(texto) {
     tipo = "entrada";
   }
 
-  const parcelasMatch = texto.match(/(\d+)x/);
+  // Detecta parcelas: "10x" ou "10 parcelas" ou "em 10 vezes" ou "parcelado em 10"
+  const parcelasMatch = texto.match(/(\d+)x/) || 
+                       texto.match(/(\d+)\s*parcelas/) || 
+                       texto.match(/(\d+)\s*vezes/) ||
+                       texto.match(/parcelado\s*em\s*(\d+)/);
+  
   if (parcelasMatch) {
     parcelas = parseInt(parcelasMatch[1]);
-    texto = texto.replace(/(\d+)x/, "");
+    // Remove a menção de parcelas do texto para limpar a descrição
+    texto = texto.replace(/(\d+)x/, "")
+                 .replace(/(\d+)\s*parcelas/, "")
+                 .replace(/(\d+)\s*vezes/, "")
+                 .replace(/parcelado\s*em\s*(\d+)/, "")
+                 .replace(/parcelado/g, "");
   }
 
   const valorMatch = texto.match(/(\d+[\.,]?\d*)/);
@@ -323,16 +382,48 @@ Vamos organizar sua vida financeira juntos! 📊🔥`);
     return;
   }
 
-  const { error } = await supabase.from("transactions").insert([
-    {
-      descricao,
-      valor,
-      tipo,
-      parcelas,
-      categoria,
-      user_id: user.id,
-    },
-  ]);
+  let error;
+
+  if (parcelas > 1) {
+    const parcelId = crypto.randomUUID();
+    const registros = [];
+    const dataInicial = new Date();
+
+    for (let i = 1; i <= parcelas; i++) {
+      const dataParcela = new Date(dataInicial);
+      dataParcela.setMonth(dataParcela.getMonth() + (i - 1));
+
+      registros.push({
+        user_id: user.id,
+        descricao,
+        valor: valorParcela,
+        tipo,
+        categoria,
+        parcelas,
+        parcela_atual: i,
+        total_parcelas: parcelas,
+        parcel_id: parcelId,
+        created_at: dataParcela.toISOString()
+      });
+    }
+
+    const result = await supabase.from("transactions").insert(registros).select();
+    error = result.error;
+  } else {
+    const result = await supabase.from("transactions").insert([
+      {
+        user_id: user.id,
+        descricao,
+        valor,
+        tipo,
+        parcelas: 1,
+        parcela_atual: 1,
+        total_parcelas: 1,
+        categoria,
+      },
+    ]).select();
+    error = result.error;
+  }
 
   if (error) {
     console.error("❌ ERRO SUPABASE:", error);
@@ -341,16 +432,16 @@ Vamos organizar sua vida financeira juntos! 📊🔥`);
   }
 
   const icon = tipo === "entrada" ? "💰" : "💸";
-  const msgTipo = tipo === "entrada" ? "*Entrada registrada!*" : "*Gasto registrado!*";
+  const msgTipo = tipo === "entrada" ? "*Entrada registrada!*" : (parcelas > 1 ? "*Compra Parcelada registrada!* 🛒" : "*Gasto registrado!*");
 
   let valorExibicao = `*R$ ${valor.toFixed(2)}*`;
   if (parcelas > 1) {
-    valorExibicao = `*R$ ${valor.toFixed(2)}* (em ${parcelas}x de R$ ${valorParcela.toFixed(2)})`;
+    valorExibicao = `*R$ ${valor.toFixed(2)}* (dividido em ${parcelas} parcelas de R$ ${valorParcela.toFixed(2)})`;
   }
 
   bot.sendMessage(
     chatId,
-    `${icon} ${msgTipo}\n📝 *${descricao}*\n🏷️ Categoria: *${categoria}*\n💰 ${valorExibicao}`,
+    `${icon} ${msgTipo}\n\n📝 *${descricao}*\n🏷️ Categoria: *${categoria}*\n💰 Valor total: ${valorExibicao}\n📅 Data: *${new Date().toLocaleDateString("pt-BR")}*`,
     { parse_mode: "Markdown" }
   );
 });
