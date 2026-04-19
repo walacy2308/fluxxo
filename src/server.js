@@ -153,7 +153,10 @@ app.put("/api/v1/gastos/:id", async (req, res) => {
     if (descricao !== undefined) updateData.descricao = descricao;
     if (valor !== undefined) updateData.valor = valor;
     if (categoria !== undefined) updateData.categoria = categoria;
-    if (pago !== undefined) updateData.completed = pago;
+    if (pago !== undefined) {
+      updateData.pago = pago;
+      updateData.data_pagamento = pago ? new Date() : null;
+    }
 
     const { data, error } = await supabase
       .from("transactions")
@@ -184,7 +187,10 @@ app.patch("/api/v1/gastos/:id", async (req, res) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .update({ completed: pago })
+      .update({ 
+        pago: pago,
+        data_pagamento: pago ? new Date() : null
+      })
       .eq("id", id)
       .eq("user_id", userId)
       .select();
@@ -210,7 +216,10 @@ app.patch("/api/v1/gastos/:id/pagar", async (req, res) => {
 
     const { error } = await supabase
       .from("transactions")
-      .update({ pago: true })
+      .update({ 
+        pago: true,
+        data_pagamento: new Date()
+      })
       .eq("id", id)
       .eq("user_id", userId);
 
