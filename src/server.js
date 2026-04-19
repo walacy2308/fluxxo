@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const TelegramBot = require("node-telegram-bot-api");
 const crypto = require("crypto");
+const { v4: uuidv4 } = require("uuid");
 
 dotenv.config();
 
@@ -71,62 +72,38 @@ app.get("/api/v1/gastos", async (req, res) => {
 });
 
 app.post("/api/v1/gastos", async (req, res) => {
-  const { descricao, valor, user_id, tipo, parcelas, categoria } = req.body;
+  const { descricao, valor, parcelas = 1 } = req.body;
+  const userId = req.headers["user-id"];
 
-  const numParcelas = parcelas || 1;
-  const tipoFinal = tipo || "gasto";
-  const categoriaFinal = categoria || detectarCategoria(descricao || "");
+  const parcelId = uuidv4();
+  const valorParcela = valor / parcelas;
 
-  let data, error;
+  let inserts = [];
 
-  if (numParcelas > 1) {
-    const valorParcela = valor / numParcelas;
-    const parcelId = crypto.randomUUID();
-    const registros = [];
-    const dataInicial = new Date();
+  for (let i = 1; i <= parcelas; i++) {
+    const data = new Date();
+    data.setMonth(data.getMonth() + (i - 1));
 
-    for (let i = 1; i <= numParcelas; i++) {
-      const dataParcela = new Date(dataInicial);
-      dataParcela.setMonth(dataParcela.getMonth() + (i - 1));
-
-      registros.push({
-        user_id,
-        descricao,
-        valor: valorParcela,
-        tipo: tipoFinal,
-        categoria: categoriaFinal,
-        parcelas: numParcelas,
-        parcela_atual: i,
-        total_parcelas: numParcelas,
-        parcel_id: parcelId,
-        created_at: dataParcela.toISOString()
-      });
-    }
-
-    const response = await supabase.from("transactions").insert(registros).select();
-    data = response.data;
-    error = response.error;
-  } else {
-    const response = await supabase
-      .from("transactions")
-      .insert([{
-        user_id,
-        descricao,
-        valor,
-        tipo: tipoFinal,
-        categoria: categoriaFinal,
-        parcelas: 1,
-        parcela_atual: 1,
-        total_parcelas: 1
-      }])
-      .select();
-    data = response.data;
-    error = response.error;
+    inserts.push({
+      user_id: userId,
+      descricao,
+      valor: valorParcela,
+      tipo: "gasto",
+      parcelas,
+      parcel_id: parcelId,
+      parcela_atual: i,
+      total_parcelas: parcelas,
+      data_vencimento: data
+    });
   }
 
-  if (error) return res.status(500).json(error);
+  const { error } = await supabase
+    .from("transactions")
+    .insert(inserts);
 
-  res.json(data);
+  if (error) return res.status(500).json({ error });
+
+  res.json({ sucesso: true });
 });
 
 app.delete("/api/v1/gastos/:id", async (req, res) => {
