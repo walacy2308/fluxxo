@@ -10,7 +10,7 @@ dotenv.config();
 const app = express();
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "user-id", "x-user-id"]
 }));
 app.use(express.json());
@@ -217,6 +217,29 @@ app.patch("/api/v1/gastos/:id", async (req, res) => {
     }
 
     return res.json(data[0] || {});
+  } catch (err) {
+    return res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+app.patch("/api/v1/gastos/:id/pagar", async (req, res) => {
+  try {
+    const userId = req.headers["user-id"];
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: "user-id não enviado" });
+    }
+
+    const { error } = await supabase
+      .from("transactions")
+      .update({ pago: true })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (error) return res.status(500).json({ error });
+
+    res.status(200).json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: "Erro interno" });
   }
